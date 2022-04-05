@@ -100,8 +100,7 @@ public class App {
                     continue;
                 }
 
-                if (isPrimary && primary != pixel ||
-                        !isPrimary && primary == pixel) {
+                if (isPrimary && primary != pixel || !isPrimary && primary == pixel) {
                     errors++;
                     if (errors > arguments.allowedErrors) return false;
                 }
@@ -196,7 +195,7 @@ public class App {
         BufferedImage overlay = new BufferedImage(image.width, image.height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = (Graphics2D) overlay.getGraphics();
         graphics.create(0, 0, image.width, image.height);
-        graphics.setColor(new Color(0, 0, 0, 192));
+        graphics.setColor(new Color(0, 0, 0, 150));
         graphics.fillRect(0, 0, image.width, image.height);
 
         graphics.setColor(new Color(0, 0, 0, 0));
@@ -206,6 +205,6 @@ public class App {
         }
 
         bufferedImage.getGraphics().drawImage(overlay, 0, 0, null);
-        ImageIO.write(bufferedImage, "png", new File("overlay.png"));
+        ImageIO.write(bufferedImage, "png", new File(arguments.outputImage));
     }
 }
