@@ -1,0 +1,50 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+}
+
+plugins {
+    id "java"
+    id "idea"
+    id "com.github.johnrengelman.shadow" version "5.2.0"
+}
+
+def buildNumber = System.env.BUILD_NUMBER ?: "SNAPSHOT"
+
+project.group = "sr.will"
+project.version = "1.0-" + buildNumber
+project.description = "Amongus"
+
+repositories {
+    mavenCentral()
+
+    maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
+}
+
+dependencies {
+    implementation 'org.slf4j:slf4j-api:1.7.36'
+    implementation 'org.slf4j:slf4j-log4j12:1.7.36'
+    implementation 'org.apache.logging.log4j:log4j-core:2.17.1'
+
+    implementation 'com.google.code.gson:gson:2.9.0'
+    implementation 'commons-io:commons-io:2.11.0'
+    implementation "commons-cli:commons-cli:1.5.0"
+}
+
+shadowJar {
+    manifest {
+        attributes "Main-Class": "sr.will.amonguscounter.Main"
+    }
+
+    archiveClassifier.set("")
+}
+
+build {
+    dependsOn clean
+    dependsOn jar
+    dependsOn shadowJar
+
+    jar.mustRunAfter clean
+    shadowJar.mustRunAfter jar
+}
