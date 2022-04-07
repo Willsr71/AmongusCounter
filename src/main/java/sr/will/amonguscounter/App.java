@@ -82,16 +82,23 @@ public class App {
         byte errors = 0;
 
         // Get color of a primary pixel
-        byte primary = image.data[((imageY + pattern.primaryColorY) * image.width) + (imageX + pattern.primaryColorX)];
+        int imageIndex = (imageY * image.width) + imageX;
+        byte primaryColor = image.data[imageIndex + pattern.primaryColorIndex];
 
-        for (byte y = 0; y < pattern.height; y++) {
-            for (byte x = 0; x < pattern.width; x++) {
-                byte pixel = image.data[((imageY + y) * image.width) + imageX + x];
-                boolean isPrimary = pattern.data[(y * pattern.width) + x] != 0;
-                if (isPrimary && primary != pixel || !isPrimary && primary == pixel) {
-                    errors++;
-                    if (errors > arguments.allowedErrors) return false;
-                }
+        for (short i = 0, x = 0, y = 0; i < pattern.width * pattern.height; i++) {
+            byte pixel = image.data[imageIndex + x];
+            boolean isPrimary = pattern.data[i] != 0;
+
+            if (isPrimary && primaryColor != pixel || !isPrimary && primaryColor == pixel) {
+                errors++;
+                if (errors > arguments.allowedErrors) return false;
+            }
+
+            x++;
+            if (x == pattern.width) {
+                x = 0;
+                y++;
+                imageIndex = (imageY * image.width) + imageX + (image.width * y);
             }
         }
 
