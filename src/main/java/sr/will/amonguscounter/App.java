@@ -17,25 +17,23 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class App {
     public static final Gson GSON = new GsonBuilder().create();
     public final Arguments arguments;
 
     public Pattern[] patterns;
-    public sr.will.amonguscounter.entity.Image image;
-
-    long startTime;
-    long endTime;
+    public Image image;
 
     public App(Arguments arguments) throws IOException {
         this.arguments = arguments;
 
-        startTime = System.currentTimeMillis();
+        long startTime = System.currentTimeMillis();
         patterns = generatePatterns();
-        endTime = System.currentTimeMillis();
+        long endTime = System.currentTimeMillis();
         Main.LOGGER.info("Pattern generation took {}ms", endTime - startTime);
         for (int i = 0; i < patterns.length; i++) {
             Main.LOGGER.info("Pattern {}: {}", i, patterns[i]);
@@ -53,9 +51,8 @@ public class App {
         Main.LOGGER.info("Image indexing took {}ms", endTime - startTime);
 
         Main.LOGGER.info("Attempting to find amongus, width: {}, height: {}, patterns: {},", image.width, image.height, patterns.length);
-        Main.LOGGER.info("Locating over ~{} loops...", image.width * image.height * patterns.length);
         startTime = System.currentTimeMillis();
-        List<Amongus> amonguses = getAmongi();
+        List<Amongus> amonguses = getAmongi((short) 0, (short) 0, image.width, image.height);
         endTime = System.currentTimeMillis();
         Main.LOGGER.info("Locating took {}ms", endTime - startTime);
 
@@ -64,12 +61,14 @@ public class App {
         generateOverlayImage(amonguses);
     }
 
-    public List<Amongus> getAmongi() {
+    public List<Amongus> getAmongi(short startX, short startY, short endX, short endY) {
+        Main.LOGGER.info("Locating over ~{} loops...", (endX - startX) * (endY - startY) * patterns.length);
+
         List<Amongus> amonguses = new ArrayList<>();
         int count = 0;
         for (byte patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
-            for (short y = 0; y + patterns[patternIndex].height < image.height; y++) {
-                for (short x = 0; x + patterns[patternIndex].width < image.width; x++) {
+            for (short y = startY; y + patterns[patternIndex].height < endY; y++) {
+                for (short x = startX; x + patterns[patternIndex].width < endX; x++) {
                     count++;
                     if (getAmongus(x, y, patterns[patternIndex])) {
                         amonguses.add(new Amongus(x, y, patternIndex));
