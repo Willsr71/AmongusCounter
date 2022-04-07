@@ -1,4 +1,4 @@
-package sr.will.amonguscounter;
+package sr.will.amonguscounter.entity;
 
 public class Amongus {
     public short x;

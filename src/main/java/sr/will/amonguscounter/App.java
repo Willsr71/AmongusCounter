@@ -2,6 +2,10 @@ package sr.will.amonguscounter;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import sr.will.amonguscounter.entity.Amongus;
+import sr.will.amonguscounter.entity.Image;
+import sr.will.amonguscounter.entity.Pattern;
+import sr.will.amonguscounter.entity.RawPatterns;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -9,10 +13,11 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
 
 public class App {
@@ -20,7 +25,7 @@ public class App {
     public final Arguments arguments;
 
     public Pattern[] patterns;
-    public Image image;
+    public sr.will.amonguscounter.entity.Image image;
 
     long startTime;
     long endTime;
@@ -84,14 +89,25 @@ public class App {
         // Get color of a primary pixel
         int imageIndex = (imageY * image.width) + imageX;
         byte primaryColor = image.data[imageIndex + pattern.primaryColorIndex];
+        byte secondaryColor = -1;
 
         for (short i = 0, x = 0, y = 0; i < pattern.width * pattern.height; i++) {
             byte pixel = image.data[imageIndex + x];
-            boolean isPrimary = pattern.data[i] != 0;
 
-            if (isPrimary && primaryColor != pixel || !isPrimary && primaryColor == pixel) {
+            // Primary pixel is not primary color or if blank pixel is primary color
+            if (pattern.data[i] == 1 && primaryColor != pixel || pattern.data[i] == 0 && primaryColor == pixel) {
                 errors++;
                 if (errors > arguments.allowedErrors) return false;
+            } else if (pattern.data[i] == 2) {
+                // Secondary color is not set
+                if (secondaryColor == -1) {
+                    // Secondary color cannot be the same color as the primary color
+                    if (primaryColor == pixel) return false;
+                    else secondaryColor = pixel;
+                } else {
+                    // secondary colors do not match
+                    if (secondaryColor != pixel) return false;
+                }
             }
 
             x++;
@@ -135,7 +151,7 @@ public class App {
 
             image[p] = index;
         }
-        this.image = new Image(this.image.width, this.image.height, image);
+        this.image = new sr.will.amonguscounter.entity.Image(this.image.width, this.image.height, image);
 
         Main.LOGGER.info("Index map: {}", (Object) indexMap);
         Main.LOGGER.info("Index map length: {}", indexMapLength);
@@ -149,27 +165,27 @@ public class App {
         return ((DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData();
     }
 
-    public Pattern[] generatePatterns() throws IOException {
-        File[] files = arguments.getPatternsFolder().listFiles();
-        assert files != null;
+    public Pattern[] generatePatterns() {
+        RawPatterns rawPatterns = GSON.fromJson(new InputStreamReader(Objects.requireNonNull(getClass().getResourceAsStream("/amongus.json"))), RawPatterns.class);
 
-        Pattern[] patterns = new Pattern[files.length * 2];
+        Pattern[] patterns = new Pattern[rawPatterns.patterns.size() * 2];
 
-        for (int patternIndex = 0; patternIndex < files.length; patternIndex++) {
-            BufferedImage image = ImageIO.read(files[patternIndex]);
-            byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
-            byte width = (byte) image.getWidth();
-            byte height = (byte) image.getHeight();
+        byte patternIndex = 0;
+        for (RawPatterns.RawPattern pattern : rawPatterns.patterns) {
+            byte height = (byte) pattern.pattern.size();
+            byte width = (byte) pattern.pattern.get(0).length();
 
             byte[][] currentPatterns = new byte[2][width * height];
-            for (int p = 0, x = 0, y = 0; p + 2 < pixels.length; p += 3) {
+            for (int i = 0, x = 0, y = 0; i < width * height; i++) {
+                char c = pattern.pattern.get(y).charAt(x);
                 byte result;
-                if (pixels[p] == 0) result = 1;
+                if (c == 'X') result = 1;
+                else if (c == 'O') result = 2;
                 else result = 0;
+
                 currentPatterns[0][(y * width) + x] = result;
                 currentPatterns[1][(y * width) + (width - x - 1)] = result;
-                //patterns[2][((height - y - 1) * width) + x] = result;
-                //patterns[3][(height - y - 1) + (width - x - 1)] = result;
+
                 x++;
                 if (x == width) {
                     x = 0;
@@ -177,10 +193,9 @@ public class App {
                 }
             }
 
-            patterns[patternIndex * 2] = new Pattern(width, height, currentPatterns[0]);
-            patterns[(patternIndex * 2) + 1] = new Pattern(width, height, currentPatterns[1]);
-            //this.patterns[(i * 4) + 2] = new Image(width, height, patterns[2]);
-            //this.patterns[(i * 4) + 3] = new Image(width, height, patterns[3]);
+            patterns[patternIndex] = new Pattern(pattern.name, width, height, currentPatterns[0]);
+            patterns[patternIndex + 1] = new Pattern(pattern.name, width, height, currentPatterns[1]);
+            patternIndex += 2;
         }
 
         return patterns;

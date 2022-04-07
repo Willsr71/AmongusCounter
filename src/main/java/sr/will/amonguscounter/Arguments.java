@@ -6,7 +6,7 @@ public class Arguments {
     private File patternsFolder = new File("patterns");
     private File image = new File("place.png");
     public String outputImage = "output.png";
-    public byte allowedErrors = 1;
+    public byte allowedErrors = 0;
 
     public File getPatternsFolder() {
         return patternsFolder;
