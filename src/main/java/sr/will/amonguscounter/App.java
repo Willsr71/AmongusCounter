@@ -7,7 +7,6 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.awt.image.ImageObserver;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -20,7 +19,7 @@ public class App {
     public static final Gson GSON = new GsonBuilder().create();
     public final Arguments arguments;
 
-    public Image[] patterns;
+    public Pattern[] patterns;
     public Image image;
 
     long startTime;
@@ -30,9 +29,7 @@ public class App {
         this.arguments = arguments;
 
         startTime = System.currentTimeMillis();
-        //for (int i = 0; i < 1000; i++) {
-        generatePatterns();
-        //}
+        patterns = generatePatterns();
         endTime = System.currentTimeMillis();
         Main.LOGGER.info("Pattern generation took {}ms", endTime - startTime);
         for (int i = 0; i < patterns.length; i++) {
@@ -49,7 +46,6 @@ public class App {
         indexImage(imageData);
         endTime = System.currentTimeMillis();
         Main.LOGGER.info("Image indexing took {}ms", endTime - startTime);
-        //Main.LOGGER.info("Image: {}", (Object) image);
 
         Main.LOGGER.info("Attempting to find amongus, width: {}, height: {}, patterns: {},", image.width, image.height, patterns.length);
         Main.LOGGER.info("Locating over ~{} loops...", image.width * image.height * patterns.length);
@@ -66,12 +62,12 @@ public class App {
     public List<Amongus> getAmongi() {
         List<Amongus> amonguses = new ArrayList<>();
         int count = 0;
-        for (byte pattern = 0; pattern < patterns.length; pattern++) {
-            for (short y = 0; y + patterns[pattern].height < image.height; y++) {
-                for (short x = 0; x + patterns[pattern].width < image.width; x++) {
+        for (byte patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
+            for (short y = 0; y + patterns[patternIndex].height < image.height; y++) {
+                for (short x = 0; x + patterns[patternIndex].width < image.width; x++) {
                     count++;
-                    if (getAmongus(x, y, patterns[pattern])) {
-                        amonguses.add(new Amongus(x, y, patterns[pattern]));
+                    if (getAmongus(x, y, patterns[patternIndex])) {
+                        amonguses.add(new Amongus(x, y, patternIndex));
                     }
                 }
             }
@@ -82,24 +78,16 @@ public class App {
         return amonguses;
     }
 
-    public boolean getAmongus(int imageX, int imageY, Image pattern) {
-        byte primary = -1;
+    public boolean getAmongus(short imageX, short imageY, Pattern pattern) {
         byte errors = 0;
+
+        // Get color of a primary pixel
+        byte primary = image.data[((imageY + pattern.primaryColorY) * image.width) + (imageX + pattern.primaryColorX)];
 
         for (byte y = 0; y < pattern.height; y++) {
             for (byte x = 0; x < pattern.width; x++) {
                 byte pixel = image.data[((imageY + y) * image.width) + imageX + x];
                 boolean isPrimary = pattern.data[(y * pattern.width) + x] != 0;
-
-                // We have not detected a primary pixel yet
-                if (primary == -1) {
-                    // This is not a primary pixel in the pattern, ignore
-                    if (pattern.data[(y * pattern.width) + x] != 0) {
-                        primary = pixel;
-                    }
-                    continue;
-                }
-
                 if (isPrimary && primary != pixel || !isPrimary && primary == pixel) {
                     errors++;
                     if (errors > arguments.allowedErrors) return false;
@@ -154,25 +142,25 @@ public class App {
         return ((DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData();
     }
 
-    public void generatePatterns() throws IOException {
+    public Pattern[] generatePatterns() throws IOException {
         File[] files = arguments.getPatternsFolder().listFiles();
         assert files != null;
 
-        patterns = new Image[files.length * 2];
+        Pattern[] patterns = new Pattern[files.length * 2];
 
-        for (int i = 0; i < files.length; i++) {
-            BufferedImage image = ImageIO.read(files[i]);
+        for (int patternIndex = 0; patternIndex < files.length; patternIndex++) {
+            BufferedImage image = ImageIO.read(files[patternIndex]);
             byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
-            short width = (short) image.getWidth();
-            short height = (short) image.getHeight();
+            byte width = (byte) image.getWidth();
+            byte height = (byte) image.getHeight();
 
-            byte[][] patterns = new byte[2][width * height];
+            byte[][] currentPatterns = new byte[2][width * height];
             for (int p = 0, x = 0, y = 0; p + 2 < pixels.length; p += 3) {
                 byte result;
                 if (pixels[p] == 0) result = 1;
                 else result = 0;
-                patterns[0][(y * width) + x] = result;
-                patterns[1][(y * width) + (width - x - 1)] = result;
+                currentPatterns[0][(y * width) + x] = result;
+                currentPatterns[1][(y * width) + (width - x - 1)] = result;
                 //patterns[2][((height - y - 1) * width) + x] = result;
                 //patterns[3][(height - y - 1) + (width - x - 1)] = result;
                 x++;
@@ -182,11 +170,13 @@ public class App {
                 }
             }
 
-            this.patterns[i * 2] = new Image(width, height, patterns[0]);
-            this.patterns[(i * 2) + 1] = new Image(width, height, patterns[1]);
+            patterns[patternIndex * 2] = new Pattern(width, height, currentPatterns[0]);
+            patterns[(patternIndex * 2) + 1] = new Pattern(width, height, currentPatterns[1]);
             //this.patterns[(i * 4) + 2] = new Image(width, height, patterns[2]);
             //this.patterns[(i * 4) + 3] = new Image(width, height, patterns[3]);
         }
+
+        return patterns;
     }
 
     public void generateOverlayImage(List<Amongus> amonguses) throws IOException {
@@ -201,7 +191,7 @@ public class App {
         graphics.setColor(new Color(0, 0, 0, 0));
         graphics.setComposite(AlphaComposite.Clear);
         for (Amongus amongus : amonguses) {
-            graphics.fillRect(amongus.x - 1, amongus.y - 1, amongus.width + 2, amongus.height + 2);
+            graphics.fillRect(amongus.x - 1, amongus.y - 1, patterns[amongus.patternIndex].width + 2, patterns[amongus.patternIndex].height + 2);
         }
 
         bufferedImage.getGraphics().drawImage(overlay, 0, 0, null);

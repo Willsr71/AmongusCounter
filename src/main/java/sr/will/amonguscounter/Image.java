@@ -1,7 +1,5 @@
 package sr.will.amonguscounter;
 
-import java.util.Arrays;
-
 public class Image {
     public final short width;
     public final short height;
@@ -16,7 +14,6 @@ public class Image {
     public String toString() {
         return "Image[width=" + width +
                 ", height=" + height +
-                ", data=" + Arrays.toString(data) +
                 "]";
     }
 }
