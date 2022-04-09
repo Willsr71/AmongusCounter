@@ -17,9 +17,12 @@ public class Main {
         CommandLine cmd = parseArgs(args);
         Arguments arguments = new Arguments();
 
-        if (cmd.hasOption("patterns")) arguments.setPatternsFolder(cmd.getOptionValue("patterns"));
-        if (cmd.hasOption("image")) arguments.setImage(cmd.getOptionValue("image"));
-        if (cmd.hasOption("outputImage")) arguments.outputImage = cmd.getOptionValue("outputImage");
+        if (cmd.hasOption("rawHistoryFile"))
+            arguments.rawHistoryFile = Arguments.checkFile(cmd.getOptionValue("rawHistoryFile"));
+        if (cmd.hasOption("historyFile"))
+            arguments.historyFile = Arguments.checkFile(cmd.getOptionValue("historyFile"));
+        if (cmd.hasOption("amongusFile"))
+            arguments.amongusFile = Arguments.checkFile(cmd.getOptionValue("amongusFile"));
         if (cmd.hasOption("allowedErrors"))
             arguments.allowedErrors = Byte.parseByte(cmd.getOptionValue("allowedErrors"));
 
@@ -29,16 +32,16 @@ public class Main {
     public static CommandLine parseArgs(String[] args) {
         Options options = new Options();
 
-        options.addOption(Option.builder("patterns")
-                .desc("Pattern folder")
+        options.addOption(Option.builder("rawHistoryFile")
+                .desc("Raw history file")
                 .hasArg().build());
 
-        options.addOption(Option.builder("image")
-                .desc("Image file")
+        options.addOption(Option.builder("historyFile")
+                .desc("History file")
                 .hasArg().build());
 
-        options.addOption(Option.builder("outputImage")
-                .desc("Output image file")
+        options.addOption(Option.builder("amongusFile")
+                .desc("Amongus file")
                 .hasArg().build());
 
         options.addOption(Option.builder("allowedErrors")
@@ -46,13 +49,11 @@ public class Main {
                 .hasArg().build());
 
         CommandLineParser parser = new DefaultParser();
-        HelpFormatter helpFormatter = new HelpFormatter();
 
         try {
             return parser.parse(options, args);
         } catch (ParseException e) {
             System.out.println(e.getMessage());
-            helpFormatter.printHelp("Teleporter -f <playerDataFolder> -c <x> <y> <z> -d <targetDimensions>", options);
             System.exit(1);
             return null;
         }

@@ -3,7 +3,7 @@ package sr.will.amonguscounter.entity;
 public class Image {
     public final short width;
     public final short height;
-    public final byte[] data;
+    public byte[] data;
 
     public Image(short width, short height, byte[] data) {
         this.width = width;

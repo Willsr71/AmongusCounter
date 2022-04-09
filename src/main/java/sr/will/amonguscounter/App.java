@@ -6,31 +6,46 @@ import sr.will.amonguscounter.entity.Amongus;
 import sr.will.amonguscounter.entity.Image;
 import sr.will.amonguscounter.entity.Pattern;
 import sr.will.amonguscounter.entity.RawPatterns;
+import sr.will.amonguscounter.history.HistoryPreProcessor;
 
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 public class App {
     public static final Gson GSON = new GsonBuilder().create();
+    public static boolean running = true;
     public final Arguments arguments;
 
-    public Pattern[] patterns;
     public Image image;
+    public Pattern[] patterns;
 
-    public App(Arguments arguments) throws IOException {
+    public App(Arguments arguments) {
         this.arguments = arguments;
 
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            Main.LOGGER.info("Stopping...");
+            running = false;
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }));
+
+        if (arguments.forcePreProcess || !arguments.historyFile.exists()) {
+            HistoryPreProcessor preProcessor = new HistoryPreProcessor(arguments.rawHistoryFile, arguments.historyFile);
+
+            try {
+                preProcessor.run();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        /*
         long startTime = System.currentTimeMillis();
         patterns = generatePatterns();
         long endTime = System.currentTimeMillis();
@@ -55,10 +70,7 @@ public class App {
         List<Amongus> amonguses = getAmongi((short) 0, (short) 0, image.width, image.height);
         endTime = System.currentTimeMillis();
         Main.LOGGER.info("Locating took {}ms", endTime - startTime);
-
-        Files.write(Path.of("amongus.json"), GSON.toJson(amonguses).getBytes(StandardCharsets.UTF_8));
-
-        generateOverlayImage(amonguses);
+         */
     }
 
     public List<Amongus> getAmongi(short startX, short startY, short endX, short endY) {
@@ -120,50 +132,6 @@ public class App {
         return true;
     }
 
-    public void indexImage(byte[] pixels) {
-        byte[] image = new byte[this.image.width * this.image.height];
-        byte[][] indexMap = new byte[32][3];
-        byte indexMapLength = 0;
-
-        for (int p = 0; p < image.length; p++) {
-            // Get the index of the current pixel
-            byte index = -1;
-            for (byte i = 0; i < indexMapLength; i++) {
-                if (indexMap[i][0] == pixels[p * 3] &&
-                        indexMap[i][1] == pixels[(p * 3) + 1] &&
-                        indexMap[i][2] == pixels[(p * 3) + 2]) {
-                    index = i;
-                    break;
-                }
-            }
-
-            // Index not found, make a new one
-            if (index == -1) {
-                indexMap[indexMapLength] = new byte[]{
-                        pixels[p * 3],
-                        pixels[(p * 3) + 1],
-                        pixels[(p * 3) + 2]
-                };
-                index = indexMapLength;
-                indexMapLength++;
-            }
-
-            image[p] = index;
-        }
-        this.image = new sr.will.amonguscounter.entity.Image(this.image.width, this.image.height, image);
-
-        Main.LOGGER.info("Index map: {}", (Object) indexMap);
-        Main.LOGGER.info("Index map length: {}", indexMapLength);
-    }
-
-    public byte[] getImageData() throws IOException {
-        BufferedImage bufferedImage = ImageIO.read(arguments.getImage());
-        short width = (short) bufferedImage.getWidth();
-        short height = (short) bufferedImage.getHeight();
-        image = new Image(width, height, new byte[0]);
-        return ((DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData();
-    }
-
     public Pattern[] generatePatterns() {
         RawPatterns rawPatterns = GSON.fromJson(new InputStreamReader(Objects.requireNonNull(getClass().getResourceAsStream("/amongus.json"))), RawPatterns.class);
 
@@ -198,24 +166,5 @@ public class App {
         }
 
         return patterns;
-    }
-
-    public void generateOverlayImage(List<Amongus> amonguses) throws IOException {
-        BufferedImage bufferedImage = ImageIO.read(arguments.getImage());
-
-        BufferedImage overlay = new BufferedImage(image.width, image.height, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D graphics = (Graphics2D) overlay.getGraphics();
-        graphics.create(0, 0, image.width, image.height);
-        graphics.setColor(new Color(0, 0, 0, 150));
-        graphics.fillRect(0, 0, image.width, image.height);
-
-        graphics.setColor(new Color(0, 0, 0, 0));
-        graphics.setComposite(AlphaComposite.Clear);
-        for (Amongus amongus : amonguses) {
-            graphics.fillRect(amongus.x - 1, amongus.y - 1, patterns[amongus.patternIndex].width + 2, patterns[amongus.patternIndex].height + 2);
-        }
-
-        bufferedImage.getGraphics().drawImage(overlay, 0, 0, null);
-        ImageIO.write(bufferedImage, "png", new File(arguments.outputImage));
     }
 }

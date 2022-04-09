@@ -3,37 +3,17 @@ package sr.will.amonguscounter;
 import java.io.File;
 
 public class Arguments {
-    private File patternsFolder = new File("patterns");
-    private File image = new File("place.png");
-    public String outputImage = "output.png";
+    public short width = 2000;
+    public short height = 2000;
+    public boolean forcePreProcess = true;
+    public File rawHistoryFile = new File("C:\\temp\\2022_place_canvas_history.csv");
+    public File historyFile = new File("C:\\temp\\history.bin");
+    public File amongusFile = new File("C:\\temp\\amongus.csv");
     public byte allowedErrors = 0;
 
-    public File getPatternsFolder() {
-        return patternsFolder;
-    }
-
-    public void setPatternsFolder(String folder) {
-        patternsFolder = checkFolder(folder);
-    }
-
-    public File getImage() {
-        return image;
-    }
-
-    public void setImage(String file) {
-        image = checkFile(file);
-    }
-
-    private File checkFile(String name) {
+    public static File checkFile(String name) {
         File file = new File(name);
         if (!file.exists()) throw new RuntimeException("File does not exist!");
-        return file;
-    }
-
-    private File checkFolder(String folder) {
-        File file = checkFile(folder);
-        if (!file.isDirectory()) throw new RuntimeException("Folder is not a directory!");
-
         return file;
     }
 }
