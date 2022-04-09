@@ -17,12 +17,14 @@ public class Main {
         CommandLine cmd = parseArgs(args);
         Arguments arguments = new Arguments();
 
-        if (cmd.hasOption("rawHistoryFile"))
-            arguments.rawHistoryFile = Arguments.checkFile(cmd.getOptionValue("rawHistoryFile"));
+        if (cmd.hasOption("workingDirectory"))
+            arguments.workingDirectory = Arguments.checkFile(cmd.getOptionValue("workingDirectory"));
         if (cmd.hasOption("historyFile"))
-            arguments.historyFile = Arguments.checkFile(cmd.getOptionValue("historyFile"));
+            arguments.historyFile = Arguments.checkFileExists(arguments.workingDirectory + cmd.getOptionValue("rawHistoryFile"));
+        if (cmd.hasOption("historyFile"))
+            arguments.processedHistoryFile = Arguments.checkFileExists(arguments.workingDirectory + cmd.getOptionValue("historyFile"));
         if (cmd.hasOption("amongusFile"))
-            arguments.amongusFile = Arguments.checkFile(cmd.getOptionValue("amongusFile"));
+            arguments.amongusFile = Arguments.checkFileExists(arguments.workingDirectory + cmd.getOptionValue("amongusFile"));
         if (cmd.hasOption("allowedErrors"))
             arguments.allowedErrors = Byte.parseByte(cmd.getOptionValue("allowedErrors"));
 
@@ -32,12 +34,16 @@ public class Main {
     public static CommandLine parseArgs(String[] args) {
         Options options = new Options();
 
-        options.addOption(Option.builder("rawHistoryFile")
-                .desc("Raw history file")
+        options.addOption(Option.builder("workingDirectory")
+                .desc("Working directory")
                 .hasArg().build());
 
         options.addOption(Option.builder("historyFile")
                 .desc("History file")
+                .hasArg().build());
+
+        options.addOption(Option.builder("processedHistoryFile")
+                .desc("Processed history file")
                 .hasArg().build());
 
         options.addOption(Option.builder("amongusFile")

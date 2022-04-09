@@ -8,6 +8,7 @@ import sr.will.amonguscounter.entity.Pattern;
 import sr.will.amonguscounter.entity.RawPatterns;
 import sr.will.amonguscounter.history.HistoryPreProcessor;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -16,6 +17,8 @@ import java.util.Objects;
 
 public class App {
     public static final Gson GSON = new GsonBuilder().create();
+    public static final byte numColors = 32;
+
     public static boolean running = true;
     public final Arguments arguments;
 
@@ -35,15 +38,7 @@ public class App {
             }
         }));
 
-        if (arguments.forcePreProcess || !arguments.historyFile.exists()) {
-            HistoryPreProcessor preProcessor = new HistoryPreProcessor(arguments.rawHistoryFile, arguments.historyFile);
-
-            try {
-                preProcessor.run();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        processHistory();
 
         /*
         long startTime = System.currentTimeMillis();
@@ -71,6 +66,19 @@ public class App {
         endTime = System.currentTimeMillis();
         Main.LOGGER.info("Locating took {}ms", endTime - startTime);
          */
+    }
+
+    private void processHistory() {
+        File processedHistoryFile = new File(arguments.workingDirectory, arguments.historyFile);
+        if (arguments.forcePreProcess || !processedHistoryFile.exists()) {
+            HistoryPreProcessor preProcessor = new HistoryPreProcessor(arguments);
+
+            try {
+                preProcessor.run();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public List<Amongus> getAmongi(short startX, short startY, short endX, short endY) {
