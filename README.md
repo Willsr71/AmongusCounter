@@ -1,5 +1,5 @@
 # Amongus Counter
-This project is nothing short of an abomination. It is designed to search as quickly as possible for amongus. Technically you can use it for any 2 part pattern though if you really want.
+This project is nothing short of an abomination. It is designed to search as quickly as possible for amongus. Technically you can use it for any 2/3 part pattern though if you really want.
 
 ![](https://i.imgur.com/32BgYLK.png)
 

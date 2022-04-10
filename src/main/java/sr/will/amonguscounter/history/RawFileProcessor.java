@@ -9,12 +9,19 @@ import java.io.*;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 public class RawFileProcessor {
     private final HistoryPreProcessor parent;
     private final File input;
+    private final Map<String, Long> baseTimestamps = new HashMap<>();
 
     private byte usedColorIndexes = 0;
+    private int chunkNumber = -1;
+    private int chunkEntries;
+    private File chunkFile;
+    private DataOutputStream outputStream;
 
     public RawFileProcessor(HistoryPreProcessor parent, File input) {
         this.parent = parent;
@@ -24,8 +31,8 @@ public class RawFileProcessor {
     public void run() throws IOException {
         Main.LOGGER.info("Processing raw history file...");
         long startTime = System.currentTimeMillis();
-        int lines = 0;
 
+        // CSV Input
         CsvParserSettings parserSettings = new CsvParserSettings();
         parserSettings.selectFields("timestamp", "pixel_color", "coordinate");
         parserSettings.setHeaders("timestamp", "user_id", "pixel_color", "coordinate");
@@ -33,6 +40,10 @@ public class RawFileProcessor {
         //parserSettings.setNumberOfRecordsToRead(10000);
         CsvParser parser = new CsvParser(parserSettings);
 
+        // Chunked output
+        createNewChunkedFile();
+
+        int lines = 0;
         for (String[] row : parser.iterate(input)) {
             processRow(row);
 
@@ -40,9 +51,8 @@ public class RawFileProcessor {
             if (!App.running) break;
         }
 
-        for (IntermediateHistoryFile file : parent.intermediateHistoryFiles.values()) {
-            file.outputStream.close();
-        }
+        outputStream.close();
+        Main.LOGGER.info("Finished writing file {} with {} entries", chunkFile.getName(), chunkEntries);
 
         long endTime = System.currentTimeMillis();
         Main.LOGGER.info("Finished processing {} raw history lines, took {}ms ({}ms/line)", lines, endTime - startTime, (double) (endTime - startTime) / (double) lines);
@@ -52,41 +62,32 @@ public class RawFileProcessor {
         String dateStr = row[0].substring(0, 10);
         String timeStr = row[0].substring(11, row[0].lastIndexOf(' '));
 
-        IntermediateHistoryFile intermediateFile = getIntermediateFile(dateStr);
-
         // Parsing the entire date and time every line os way too slow
         // This stores the date in a map and just calculates the time
-        intermediateFile.outputStream.writeLong(getTimeParsed(intermediateFile.timestamp, timeStr));
+        outputStream.writeLong(getTime(dateStr, timeStr));
 
         byte colorIndex = getColorIndex(Integer.parseInt(row[1].substring(1), 16));
         parent.colorUses[colorIndex]++;
-        intermediateFile.outputStream.writeByte(colorIndex);
+        outputStream.writeByte(colorIndex);
 
         for (short coord : getCoords(row[2])) {
-            intermediateFile.outputStream.writeShort(coord);
+            outputStream.writeShort(coord);
+        }
+
+        chunkEntries++;
+        if (chunkEntries == parent.arguments.maxChunkEntries) {
+            outputStream.close();
+            Main.LOGGER.info("Finished writing file {} with {} entries", chunkFile.getName(), chunkEntries);
+            createNewChunkedFile();
         }
     }
 
-    private IntermediateHistoryFile getIntermediateFile(String date) throws IOException {
-        if (parent.intermediateHistoryFiles.containsKey(date)) return parent.intermediateHistoryFiles.get(date);
-
-        long timestamp = ZonedDateTime.of(
-                Integer.parseInt(date.substring(0, 4)),
-                Integer.parseInt(date.substring(5, 7)),
-                Integer.parseInt(date.substring(8, 10)),
-                0,
-                0,
-                0,
-                0,
-                ZoneId.ofOffset("UTC", ZoneOffset.UTC)
-        ).toInstant().toEpochMilli();
-
-        File file = new File(parent.arguments.workingDirectory, date + ".bin");
-        DataOutputStream outputStream = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
-
-        IntermediateHistoryFile intermediateFile = new IntermediateHistoryFile(date, timestamp, file, outputStream);
-        parent.intermediateHistoryFiles.put(date, intermediateFile);
-        return intermediateFile;
+    private void createNewChunkedFile() throws IOException {
+        chunkEntries = 0;
+        chunkNumber++;
+        chunkFile = new File(parent.arguments.chunkedDirectory, "chunk_" + chunkNumber + ".bin");
+        outputStream = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(chunkFile)));
+        parent.chunkedFiles.add(chunkFile);
     }
 
     private short[] getCoords(String coordString) {
@@ -105,6 +106,24 @@ public class RawFileProcessor {
         }
 
         return coords;
+    }
+
+    private long getTime(String dateStr, String timeStr) {
+        if (baseTimestamps.containsKey(dateStr)) return getTimeParsed(baseTimestamps.get(dateStr), timeStr);
+
+        long timestamp = ZonedDateTime.of(
+                Integer.parseInt(dateStr.substring(0, 4)),
+                Integer.parseInt(dateStr.substring(5, 7)),
+                Integer.parseInt(dateStr.substring(8, 10)),
+                0,
+                0,
+                0,
+                0,
+                ZoneId.ofOffset("UTC", ZoneOffset.UTC)
+        ).toInstant().toEpochMilli();
+
+        baseTimestamps.put(dateStr, timestamp);
+        return getTimeParsed(timestamp, timeStr);
     }
 
     private long getTimeParsed(long baseTime, String timeStr) {

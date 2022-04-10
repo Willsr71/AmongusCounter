@@ -5,13 +5,13 @@ import sr.will.amonguscounter.Arguments;
 import sr.will.amonguscounter.Main;
 
 import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 public class HistoryPreProcessor {
-    final Arguments arguments;
+    public final Arguments arguments;
 
-    Map<String, IntermediateHistoryFile> intermediateHistoryFiles = new HashMap<>();
+    List<File> chunkedFiles = new ArrayList<>();
     int[] colorsIndex = new int[App.numColors];
     int[] colorUses = new int[App.numColors];
     byte[] colorRemaps = new byte[App.numColors];
@@ -33,7 +33,7 @@ public class HistoryPreProcessor {
             Main.LOGGER.info("Color {} -> {}, {} usages ({})", colorRemaps[i], i, colorUses[colorRemaps[i]], colorsIndex[colorRemaps[i]]);
         }
 
-        sortHistory();
+        new HistorySorter(this).run();
 
         long endTime = System.currentTimeMillis();
         Main.LOGGER.info("Finished pre-processing history, took {}ms", endTime - startTime);
@@ -58,13 +58,5 @@ public class HistoryPreProcessor {
             }
         }
         return nextColorIndex;
-    }
-
-    private void sortHistory() throws IOException {
-        DataOutputStream outputStream = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(new File(arguments.workingDirectory, arguments.processedHistoryFile))));
-        for (IntermediateHistoryFile file : intermediateHistoryFiles.values()) {
-            Main.LOGGER.info(file.date);
-            new HistorySorter(file.file, outputStream).run();
-        }
     }
 }

@@ -19,6 +19,8 @@ public class Main {
 
         if (cmd.hasOption("workingDirectory"))
             arguments.workingDirectory = Arguments.checkFile(cmd.getOptionValue("workingDirectory"));
+        if (cmd.hasOption("chunkedDirectory"))
+            arguments.chunkedDirectory = Arguments.checkFile(cmd.getOptionValue("chunkedDirectory"));
         if (cmd.hasOption("historyFile"))
             arguments.historyFile = Arguments.checkFileExists(arguments.workingDirectory + cmd.getOptionValue("rawHistoryFile"));
         if (cmd.hasOption("historyFile"))
@@ -28,6 +30,7 @@ public class Main {
         if (cmd.hasOption("allowedErrors"))
             arguments.allowedErrors = Byte.parseByte(cmd.getOptionValue("allowedErrors"));
 
+        arguments.createDirs();
         return arguments;
     }
 
