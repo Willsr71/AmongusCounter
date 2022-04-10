@@ -37,7 +37,6 @@ public class RawFileProcessor {
         parserSettings.selectFields("timestamp", "pixel_color", "coordinate");
         parserSettings.setHeaders("timestamp", "user_id", "pixel_color", "coordinate");
         parserSettings.setHeaderExtractionEnabled(true);
-        //parserSettings.setNumberOfRecordsToRead(10000);
         CsvParser parser = new CsvParser(parserSettings);
 
         // Chunked output
@@ -53,7 +52,6 @@ public class RawFileProcessor {
 
         outputStream.close();
         sortChunk();
-        Main.LOGGER.info("Finished writing chunk {} with {} entries", chunkNumber, chunkEntries);
 
         long endTime = System.currentTimeMillis();
         Main.LOGGER.info("Finished processing {} raw history lines, took {}ms ({}ms/line)", lines, endTime - startTime, (double) (endTime - startTime) / (double) lines);
@@ -78,7 +76,6 @@ public class RawFileProcessor {
         chunkEntries++;
         if (chunkEntries == parent.arguments.maxChunkEntries) {
             outputStream.close();
-            Main.LOGGER.info("Finished writing chunk {} with {} entries", chunkNumber, chunkEntries);
             sortChunk();
             createNewChunk();
         }
@@ -95,6 +92,7 @@ public class RawFileProcessor {
         File chunkFile = new File(parent.arguments.chunkedDirectory, "chunk_" + chunkNumber + ".bin");
         ChunkSorter.sortChunk(byteStream.toByteArray(), chunkFile);
         parent.chunkedFiles.add(chunkFile);
+        Main.LOGGER.info("Finished writing chunk {} with {} entries, size: {}", chunkNumber, chunkEntries, byteStream.size());
     }
 
     private short[] getCoords(String coordString) {

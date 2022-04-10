@@ -24,7 +24,7 @@ public class App {
 
     public Metadata metadata;
     public Image image;
-    public Graphics2D graphics;
+    public Color[] colors;
     public Pattern[] patterns;
     public byte[] patternSearchDimensions = new byte[2];
 
@@ -36,6 +36,8 @@ public class App {
 
         preProcessHistory();
         metadata = GSON.fromJson(Files.readString(new File(arguments.workingDirectory, arguments.metadataFile).toPath()), Metadata.class);
+        colors = metadata.getColors();
+
         inputStream = new DataInputStream(new BufferedInputStream(new FileInputStream(new File(arguments.workingDirectory, arguments.processedHistoryFile))));
 
         long startTime = System.currentTimeMillis();
@@ -48,7 +50,7 @@ public class App {
         patterns = generatePatterns();
         endTime = System.currentTimeMillis();
         Main.LOGGER.info("Pattern generation took {}ms", endTime - startTime);
-        for (int i = 0; i < patterns.length; i++) {
+        for (int i = 0; i < patterns.length; i += 2) {
             Main.LOGGER.info("Pattern {}:", i);
             for (int y = 0; y < patterns[i].height; y++) {
                 int start = y * patterns[i].width;
@@ -58,11 +60,10 @@ public class App {
         Main.LOGGER.info("Pattern search dimensions {}", patternSearchDimensions);
 
         // Process image
-        for (int i = 0; i < metadata.records; i++) {
+        while (inputStream.available() != 0) {
             processPixel();
 
             if (!running) break;
-            break;
         }
 
         inputStream.close();
@@ -78,9 +79,10 @@ public class App {
 
         //Main.LOGGER.info("Processing pixel with timestamp {}, color {}, ({}, {}), ({}, {})", timestamp, colorIndex, x, y, endX, endY);
 
+        List<Amongus> amonguses;
         if (endX == 0 && endY == 0) {
             placePixel(colorIndex, x, y);
-            getAmongi(
+            amonguses = getAmongi(
                     (short) Math.max(0, x - patternSearchDimensions[0]),
                     (short) Math.max(0, y - patternSearchDimensions[1]),
                     (short) Math.min(image.width, x + patternSearchDimensions[0]),
@@ -88,12 +90,16 @@ public class App {
             );
         } else {
             placePixelRange(colorIndex, x, y, endX, endY);
-            getAmongi(
+            amonguses = getAmongi(
                     (short) Math.max(0, x - patternSearchDimensions[0]),
                     (short) Math.max(0, y - patternSearchDimensions[1]),
                     (short) Math.min(image.width, endX + patternSearchDimensions[0]),
                     (short) Math.min(image.height, endY + patternSearchDimensions[1])
             );
+        }
+
+        for(Amongus amongus : amonguses) {
+            ImageCreator.createImage(timestamp, colors, image, amongus.x, amongus.y, patterns[amongus.patternIndex].width, patterns[amongus.patternIndex].height);
         }
     }
 
@@ -142,10 +148,7 @@ public class App {
         for (short i = 0, x = 0, y = 0; i < pattern.width * pattern.height; i++) {
             byte pixel = image.data[imageIndex + x];
 
-            if (pattern.data[i] == -1) {
-                // Pixel is safe to ignore
-                continue;
-            } else if (pattern.data[i] == 1 && primaryColor != pixel || pattern.data[i] == 0 && primaryColor == pixel) {
+            if (pattern.data[i] == 1 && primaryColor != pixel || pattern.data[i] == 0 && primaryColor == pixel) {
                 // Primary pixel is not primary color or if blank pixel is primary color
                 errors++;
                 if (errors > arguments.allowedErrors) return false;

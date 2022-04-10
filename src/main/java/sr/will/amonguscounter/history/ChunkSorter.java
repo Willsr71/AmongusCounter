@@ -22,10 +22,10 @@ public class ChunkSorter {
     private static Map<Long, Integer> getTimestampMap(byte[] chunk) throws IOException {
         DataInputStream inputStream = new DataInputStream(new ByteArrayInputStream(chunk));
         Map<Long, Integer> timestampMap = new HashMap<>();
-        for (int pointer = 0; pointer < inputStream.available(); pointer += 17) {
+        for (int pointer = 0; pointer < chunk.length; pointer += 17) {
             long timestamp = inputStream.readLong();
             timestampMap.put(timestamp, pointer);
-            inputStream.skipBytes(9); // 1 byte, 4 shorts
+            inputStream.skipNBytes(9); // 1 byte, 4 shorts
         }
 
         return timestampMap;

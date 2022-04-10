@@ -12,7 +12,7 @@ public class Arguments {
     public String processedHistoryFile = "history.bin";
     public String metadataFile = "metadata.json";
     public String amongusFile = "amongus.csv";
-    public byte allowedErrors = 4;
+    public byte allowedErrors = 0;
     public int maxChunkEntries = 20000000;
 
     public static File checkFile(String name) {
