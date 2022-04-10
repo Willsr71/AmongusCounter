@@ -20,7 +20,7 @@ public class App {
     public static final byte numColors = 32;
 
     public static boolean running = true;
-    public final Arguments arguments;
+    public static Arguments arguments;
 
     public Metadata metadata;
     public Image image;
@@ -31,7 +31,7 @@ public class App {
     private DataInputStream inputStream;
 
     public App(Arguments arguments) throws IOException {
-        this.arguments = arguments;
+        App.arguments = arguments;
         addShutdownHook();
 
         preProcessHistory();
@@ -98,9 +98,11 @@ public class App {
             );
         }
 
+        /*
         for(Amongus amongus : amonguses) {
             ImageCreator.createImage(timestamp, colors, image, amongus.x, amongus.y, patterns[amongus.patternIndex].width, patterns[amongus.patternIndex].height);
         }
+         */
     }
 
     private void placePixel(byte colorIndex, short x, short y) {
@@ -170,12 +172,6 @@ public class App {
                 y++;
                 imageIndex = (imageY * image.width) + imageX + (image.width * y);
             }
-        }
-
-        Main.LOGGER.info("Found amongus at {}, {}", imageX, imageY);
-        for (int y = 0; y < pattern.height; y++) {
-            int start = (imageY * image.width) + imageX + (image.width * y);
-            Main.LOGGER.info("{}", Arrays.copyOfRange(image.data, start, start + pattern.width));
         }
 
         return true;

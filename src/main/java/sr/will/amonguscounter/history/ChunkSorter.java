@@ -8,23 +8,34 @@ import java.util.Map;
 public class ChunkSorter {
 
     public static void sortChunk(byte[] chunk, File file) throws IOException {
-        Map<Long, Integer> timestampMap = getTimestampMap(chunk);
+        Map<Long, int[]> timestampMap = getTimestampMap(chunk);
 
         List<Long> sortedTimestamps = timestampMap.keySet().stream().sorted().toList();
         DataOutputStream outputStream = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
         for (long timestamp : sortedTimestamps) {
-            int pointer = timestampMap.remove(timestamp);
-            outputStream.write(chunk, pointer, 17);
+            for (int pointer : timestampMap.get(timestamp)) {
+                outputStream.write(chunk, pointer, 17);
+            }
         }
         outputStream.close();
     }
 
-    private static Map<Long, Integer> getTimestampMap(byte[] chunk) throws IOException {
+    private static Map<Long, int[]> getTimestampMap(byte[] chunk) throws IOException {
         DataInputStream inputStream = new DataInputStream(new ByteArrayInputStream(chunk));
-        Map<Long, Integer> timestampMap = new HashMap<>();
+        Map<Long, int[]> timestampMap = new HashMap<>();
         for (int pointer = 0; pointer < chunk.length; pointer += 17) {
             long timestamp = inputStream.readLong();
-            timestampMap.put(timestamp, pointer);
+            int[] pointerArr;
+            if (timestampMap.containsKey(timestamp)) {
+                int[] oldArr = timestampMap.get(timestamp);
+                pointerArr = new int[oldArr.length + 1];
+                System.arraycopy(oldArr, 0, pointerArr, 1, oldArr.length);
+            } else {
+                pointerArr = new int[1];
+            }
+
+            pointerArr[0] = pointer;
+            timestampMap.put(timestamp, pointerArr);
             inputStream.skipNBytes(9); // 1 byte, 4 shorts
         }
 
