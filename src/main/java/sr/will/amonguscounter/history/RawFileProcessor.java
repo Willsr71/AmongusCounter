@@ -20,8 +20,8 @@ public class RawFileProcessor {
     private byte usedColorIndexes = 0;
     private int chunkNumber = -1;
     private int chunkEntries;
-    private File chunkFile;
     private DataOutputStream outputStream;
+    private ByteArrayOutputStream byteStream;
 
     public RawFileProcessor(HistoryPreProcessor parent, File input) {
         this.parent = parent;
@@ -41,7 +41,7 @@ public class RawFileProcessor {
         CsvParser parser = new CsvParser(parserSettings);
 
         // Chunked output
-        createNewChunkedFile();
+        createNewChunk();
 
         int lines = 0;
         for (String[] row : parser.iterate(input)) {
@@ -52,7 +52,8 @@ public class RawFileProcessor {
         }
 
         outputStream.close();
-        Main.LOGGER.info("Finished writing file {} with {} entries", chunkFile.getName(), chunkEntries);
+        sortChunk();
+        Main.LOGGER.info("Finished writing chunk {} with {} entries", chunkNumber, chunkEntries);
 
         long endTime = System.currentTimeMillis();
         Main.LOGGER.info("Finished processing {} raw history lines, took {}ms ({}ms/line)", lines, endTime - startTime, (double) (endTime - startTime) / (double) lines);
@@ -77,16 +78,22 @@ public class RawFileProcessor {
         chunkEntries++;
         if (chunkEntries == parent.arguments.maxChunkEntries) {
             outputStream.close();
-            Main.LOGGER.info("Finished writing file {} with {} entries", chunkFile.getName(), chunkEntries);
-            createNewChunkedFile();
+            Main.LOGGER.info("Finished writing chunk {} with {} entries", chunkNumber, chunkEntries);
+            sortChunk();
+            createNewChunk();
         }
     }
 
-    private void createNewChunkedFile() throws IOException {
+    private void createNewChunk() {
         chunkEntries = 0;
         chunkNumber++;
-        chunkFile = new File(parent.arguments.chunkedDirectory, "chunk_" + chunkNumber + ".bin");
-        outputStream = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(chunkFile)));
+        byteStream = new ByteArrayOutputStream();
+        outputStream = new DataOutputStream(byteStream);
+    }
+
+    private void sortChunk() throws IOException {
+        File chunkFile = new File(parent.arguments.chunkedDirectory, "chunk_" + chunkNumber + ".bin");
+        ChunkSorter.sortChunk(byteStream.toByteArray(), chunkFile);
         parent.chunkedFiles.add(chunkFile);
     }
 

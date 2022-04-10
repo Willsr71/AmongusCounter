@@ -33,7 +33,7 @@ public class HistoryPreProcessor {
             Main.LOGGER.info("Color {} -> {}, {} usages ({})", colorRemaps[i], i, colorUses[colorRemaps[i]], colorsIndex[colorRemaps[i]]);
         }
 
-        new HistorySorter(this).run();
+        new ChunkMerger(this).run();
 
         long endTime = System.currentTimeMillis();
         Main.LOGGER.info("Finished pre-processing history, took {}ms", endTime - startTime);
