@@ -5,14 +5,15 @@ import java.io.File;
 public class Arguments {
     public short width = 2000;
     public short height = 2000;
-    public boolean forcePreProcess = true;
+    public boolean forcePreProcess = false;
     public File workingDirectory = new File("C:\\Dev\\_Environment\\Amongus\\");
     public File chunkedDirectory = new File(workingDirectory, "chunked");
     public String historyFile = "2022_place_canvas_history.csv";
     public String processedHistoryFile = "history.bin";
+    public String metadataFile = "metadata.json";
     public String amongusFile = "amongus.csv";
     public byte allowedErrors = 0;
-    public int maxChunkEntries = 1000000;
+    public int maxChunkEntries = 20000000;
 
     public static File checkFile(String name) {
         File file = new File(name);

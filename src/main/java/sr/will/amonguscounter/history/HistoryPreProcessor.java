@@ -3,8 +3,10 @@ package sr.will.amonguscounter.history;
 import sr.will.amonguscounter.App;
 import sr.will.amonguscounter.Arguments;
 import sr.will.amonguscounter.Main;
+import sr.will.amonguscounter.entity.Metadata;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,6 +36,9 @@ public class HistoryPreProcessor {
         }
 
         new ChunkMerger(this).run();
+
+        Metadata metadata = new Metadata(colorsIndex, colorUses, colorRemaps);
+        Files.writeString(new File(arguments.workingDirectory, arguments.metadataFile).toPath(), App.GSON.toJson(metadata));
 
         long endTime = System.currentTimeMillis();
         Main.LOGGER.info("Finished pre-processing history, took {}ms", endTime - startTime);

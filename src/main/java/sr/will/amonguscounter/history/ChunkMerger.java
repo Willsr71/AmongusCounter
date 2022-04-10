@@ -32,10 +32,12 @@ public class ChunkMerger {
 
         while (status != 0) {
             byte i = getNextEntryIndex(nextTimestamps);
+            byte colorIndex = inputStreams[i].readByte();
 
             // Write data to file
             outputStream.writeLong(nextTimestamps[i]);
-            outputStream.write(inputStreams[i].readNBytes(9));
+            outputStream.writeByte(parent.colorRemaps[colorIndex]); // Remap color to new index
+            outputStream.write(inputStreams[i].readNBytes(8));
 
             if (inputStreams[i].available() == 0) {
                 nextTimestamps[i] = 0;
@@ -52,13 +54,6 @@ public class ChunkMerger {
 
         // Clean up
         outputStream.close();
-    }
-
-    private byte[] readFileToBytes(File file) throws IOException {
-        BufferedInputStream inputStream = new BufferedInputStream(new FileInputStream(file));
-        byte[] bytes = inputStream.readAllBytes();
-        inputStream.close();
-        return bytes;
     }
 
     private byte getNextEntryIndex(long[] nextTimestamps) {
