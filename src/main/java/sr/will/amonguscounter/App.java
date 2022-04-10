@@ -49,7 +49,11 @@ public class App {
         endTime = System.currentTimeMillis();
         Main.LOGGER.info("Pattern generation took {}ms", endTime - startTime);
         for (int i = 0; i < patterns.length; i++) {
-            Main.LOGGER.info("Pattern {}: {}", i, patterns[i]);
+            Main.LOGGER.info("Pattern {}:", i);
+            for (int y = 0; y < patterns[i].height; y++) {
+                int start = y * patterns[i].width;
+                Main.LOGGER.info("{}", Arrays.copyOfRange(patterns[i].data, start, start + patterns[i].width));
+            }
         }
         Main.LOGGER.info("Pattern search dimensions {}", patternSearchDimensions);
 
@@ -58,6 +62,7 @@ public class App {
             processPixel();
 
             if (!running) break;
+            break;
         }
 
         inputStream.close();
@@ -83,6 +88,12 @@ public class App {
             );
         } else {
             placePixelRange(colorIndex, x, y, endX, endY);
+            getAmongi(
+                    (short) Math.max(0, x - patternSearchDimensions[0]),
+                    (short) Math.max(0, y - patternSearchDimensions[1]),
+                    (short) Math.min(image.width, endX + patternSearchDimensions[0]),
+                    (short) Math.min(image.height, endY + patternSearchDimensions[1])
+            );
         }
     }
 
@@ -167,29 +178,41 @@ public class App {
         return true;
     }
 
+    // Generate patterns
+    // -1 = ignore
+    // 0 = anything except primary color
+    // 1 = primary color
+    // 2 = secondary color
     public Pattern[] generatePatterns() {
         RawPatterns rawPatterns = GSON.fromJson(new InputStreamReader(Objects.requireNonNull(getClass().getResourceAsStream("/amongus.json"))), RawPatterns.class);
 
+        // Generate 2 patterns for each one in the file, one mirrored from the original
         Pattern[] patterns = new Pattern[rawPatterns.patterns.size() * 2];
 
         byte patternIndex = 0;
         for (RawPatterns.RawPattern pattern : rawPatterns.patterns) {
-            byte height = (byte) pattern.pattern.size();
-            byte width = (byte) pattern.pattern.get(0).length();
+            // Leave room for a 1 pixel buffer around the pattern so we can discern it from the background
+            byte height = (byte) (pattern.pattern.size() + 2);
+            byte width = (byte) (pattern.pattern.get(0).length() + 2);
 
+            // Get the maximum dimensions so we know how large of an area to search later
             if (width > patternSearchDimensions[0]) patternSearchDimensions[0] = width;
             if (height > patternSearchDimensions[1]) patternSearchDimensions[1] = height;
 
             byte[][] currentPatterns = new byte[2][width * height];
             for (int i = 0, x = 0, y = 0; i < width * height; i++) {
-                char c = pattern.pattern.get(y).charAt(x);
-                byte result;
-                if (c == 'X') result = 1;
-                else if (c == 'O') result = 2;
-                else result = 0;
+                // Only populate the interior of the pattern, leaving a 1 pixel border on the outside
+                if (y > 0 && y + 1 < height && x > 0 && x + 1 < width) {
+                    char c = pattern.pattern.get(y - 1).charAt(x - 1);
+                    byte result;
+                    if (c == 'X') result = 1; // primary color
+                    else if (c == 'O') result = 2; // secondary color
+                    else result = 0;
 
-                currentPatterns[0][(y * width) + x] = result;
-                currentPatterns[1][(y * width) + (width - x - 1)] = result;
+                    // pattern and mirrored pattern
+                    currentPatterns[0][(y * width) + x] = result;
+                    currentPatterns[1][(y * width) + (width - x - 1)] = result;
+                }
 
                 x++;
                 if (x == width) {
@@ -198,14 +221,38 @@ public class App {
                 }
             }
 
-            patterns[patternIndex] = new Pattern(pattern.name, width, height, currentPatterns[0]);
-            patterns[patternIndex + 1] = new Pattern(pattern.name, width, height, currentPatterns[1]);
+            patterns[patternIndex] = new Pattern(pattern.name, width, height, outlinePattern(currentPatterns[0], width, height));
+            patterns[patternIndex + 1] = new Pattern(pattern.name, width, height, outlinePattern(currentPatterns[1], width, height));
             patternIndex += 2;
         }
 
         return patterns;
     }
 
+    // Checks all pixels of 0 and if they are not next to a primary or secondary pixel, set them to -1 (ignore)
+    // Example (second column should be decremented by 1, it is shown as such for visual clarity)
+    // 1 0 0 0    2 1 0 1
+    // 0 0 0 1 => 1 0 1 2
+    // 0 0 0 0    0 0 0 1
+    private byte[] outlinePattern(byte[] pattern, byte width, byte height) {
+        for (byte y = 0; y < height; y++) {
+            for (byte x = 0; x < width; x++) {
+                byte pixel = pattern[(y * width) + x];
+                if (pixel != 0) continue;
+                if ((x > 0 && pattern[(y * width) + x - 1] > 0) ||
+                        (y > 0 && pattern[((y - 1) * width) + x] > 0) ||
+                        (x + 1 < width && pattern[(y * width) + x + 1] > 0) ||
+                        (y + 1 < height && pattern[((y + 1) * width) + x] > 0)) {
+                    pattern[(y * width) + x] = 0;
+                } else {
+                    pattern[(y * width) + x] = -1;
+                }
+            }
+        }
+        return pattern;
+    }
+
+    // Get a blank image filled with whatever color index white happens to be
     public byte[] getInitialImageData() {
         byte whiteIndex = metadata.getColorIndex(new Color(255, 255, 255).getRGB());
         byte[] imageData = new byte[arguments.width * arguments.height];
@@ -226,6 +273,7 @@ public class App {
         }
     }
 
+    // For clean-ish shutdown of loops
     private void addShutdownHook() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             Main.LOGGER.info("Stopping...");
