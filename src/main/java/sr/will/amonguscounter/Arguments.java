@@ -6,7 +6,7 @@ public class Arguments {
     public short width = 2000;
     public short height = 2000;
     public boolean forcePreProcess = false;
-    public File workingDirectory = new File("C:\\Dev\\_Environment\\Amongus\\");
+    public File workingDirectory = new File("C:\\temp\\");
     public File chunkedDirectory = new File(workingDirectory, "chunked");
     public String historyFile = "2022_place_canvas_history.csv";
     public String processedHistoryFile = "history.bin";

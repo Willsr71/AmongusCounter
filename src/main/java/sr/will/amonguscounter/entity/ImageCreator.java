@@ -1,5 +1,7 @@
 package sr.will.amonguscounter.entity;
 
+import sr.will.amonguscounter.App;
+
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -26,6 +28,6 @@ public class ImageCreator {
             dataBuffer.setElem(i, colors[image[i]].getRGB());
         }
 
-        ImageIO.write(bufferedImage, "png", new File("images/" + timestamp + ".png"));
+        ImageIO.write(bufferedImage, "png", new File(App.arguments.workingDirectory, "images/" + timestamp + ".png"));
     }
 }

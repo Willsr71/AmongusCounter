@@ -28,7 +28,7 @@ public class ChunkMerger {
         }
 
         // Open output stream
-        DataOutputStream outputStream = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(parent.arguments.processedHistoryFile)));
+        DataOutputStream outputStream = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(new File(parent.arguments.workingDirectory, parent.arguments.processedHistoryFile))));
 
         while (status != 0) {
             byte i = getNextEntryIndex(nextTimestamps);
