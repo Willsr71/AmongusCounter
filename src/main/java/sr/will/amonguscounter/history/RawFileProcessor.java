@@ -54,7 +54,7 @@ public class RawFileProcessor {
         sortChunk();
 
         long endTime = System.currentTimeMillis();
-        Main.LOGGER.info("Finished processing {} raw history lines, took {}ms ({}ms/line)", lines, endTime - startTime, (double) (endTime - startTime) / (double) lines);
+        Main.LOGGER.info("Finished processing {} raw history lines, took {}ms ({}ns/line)", lines, endTime - startTime, ((double) (endTime - startTime) / (double) lines) * 1000d);
     }
 
     private void processRow(String[] row) throws IOException {

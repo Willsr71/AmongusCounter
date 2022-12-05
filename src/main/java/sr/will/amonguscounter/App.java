@@ -3,15 +3,17 @@ package sr.will.amonguscounter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import sr.will.amonguscounter.entity.Image;
-import sr.will.amonguscounter.entity.*;
+import sr.will.amonguscounter.entity.Metadata;
+import sr.will.amonguscounter.entity.Pattern;
+import sr.will.amonguscounter.entity.RawPatterns;
 import sr.will.amonguscounter.history.HistoryPreProcessor;
 
 import java.awt.*;
 import java.io.*;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public class App {
@@ -60,16 +62,28 @@ public class App {
         Main.LOGGER.info("Pattern search dimensions {}", patternSearchDimensions);
 
         // Process image
-        while (inputStream.available() != 0) {
-            processPixel();
+        startTime = System.currentTimeMillis();
+        long millionStartTime = System.currentTimeMillis();
+        int count = 0;
+        for (int curMil = 0, millions = 0; inputStream.available() != 0; count++, curMil++) {
+            processRecord();
+
+            if (curMil == 1000000) {
+                millions += 1;
+                curMil = 0;
+                Main.LOGGER.info("Passed {} million, took {}ns/entry", millions, ((double) (System.currentTimeMillis() - millionStartTime)) / 1000d);
+                millionStartTime = System.currentTimeMillis();
+            }
 
             if (!running) break;
         }
+        endTime = System.currentTimeMillis();
+        Main.LOGGER.info("Finished searching for patterns, took {}ns/entry", (((double) (endTime - startTime)) / (double) count) * 1000d);
 
         inputStream.close();
     }
 
-    private void processPixel() throws IOException {
+    private void processRecord() throws IOException {
         long timestamp = inputStream.readLong();
         byte colorIndex = inputStream.readByte();
         short x = inputStream.readShort();
@@ -77,26 +91,22 @@ public class App {
         short endX = inputStream.readShort();
         short endY = inputStream.readShort();
 
-        //Main.LOGGER.info("Processing pixel with timestamp {}, color {}, ({}, {}), ({}, {})", timestamp, colorIndex, x, y, endX, endY);
-
-        List<Amongus> amonguses;
+        short width = 0;
+        short height = 0;
         if (endX == 0 && endY == 0) {
             placePixel(colorIndex, x, y);
-            amonguses = getAmongi(
-                    (short) Math.max(0, x - patternSearchDimensions[0]),
-                    (short) Math.max(0, y - patternSearchDimensions[1]),
-                    (short) Math.min(image.width, x + patternSearchDimensions[0]),
-                    (short) Math.min(image.height, y + patternSearchDimensions[1])
-            );
         } else {
+            width = (short) (endX - x);
+            height = (short) (endY - y);
             placePixelRange(colorIndex, x, y, endX, endY);
-            amonguses = getAmongi(
-                    (short) Math.max(0, x - patternSearchDimensions[0]),
-                    (short) Math.max(0, y - patternSearchDimensions[1]),
-                    (short) Math.min(image.width, endX + patternSearchDimensions[0]),
-                    (short) Math.min(image.height, endY + patternSearchDimensions[1])
-            );
         }
+
+        Map<Integer, Byte> amonguses = getAmongi(
+                (short) Math.max(0, x - patternSearchDimensions[0]),
+                (short) Math.max(0, y - patternSearchDimensions[1]),
+                (short) Math.min(image.width, x + width + patternSearchDimensions[0]),
+                (short) Math.min(image.height, y + height + patternSearchDimensions[1])
+        );
 
         /*
         for(Amongus amongus : amonguses) {
@@ -118,24 +128,17 @@ public class App {
         }
     }
 
-    public List<Amongus> getAmongi(short startX, short startY, short endX, short endY) {
-        //Main.LOGGER.info("({}, {}, {}, {}), locating over ~{} loops...", startX, startY, endX, endY, (endX - startX) * (endY - startY) * patterns.length);
-
-        List<Amongus> amonguses = new ArrayList<>();
-        int count = 0;
+    public Map<Integer, Byte> getAmongi(short startX, short startY, short endX, short endY) {
+        Map<Integer, Byte> amonguses = new HashMap<>();
         for (byte patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
             for (short y = startY; y + patterns[patternIndex].height < endY; y++) {
                 for (short x = startX; x + patterns[patternIndex].width < endX; x++) {
-                    count++;
                     if (getAmongus(x, y, patterns[patternIndex])) {
-                        amonguses.add(new Amongus(x, y, patternIndex));
+                        amonguses.put((int) x + ((int) y << 16), patternIndex);
                     }
                 }
             }
         }
-
-        //Main.LOGGER.info("Iterations: {}", count);
-        //Main.LOGGER.info("Found: {}", amonguses.size());
         return amonguses;
     }
 
@@ -154,7 +157,7 @@ public class App {
                 // Primary pixel is not primary color or if blank pixel is primary color
                 errors++;
                 if (errors > arguments.allowedErrors) return false;
-            } else if (pattern.data[i] == 2) {
+            } else if (pattern.data[i] == 3) {
                 // Secondary color is not set
                 if (secondaryColor == -1) {
                     // Secondary color cannot be the same color as the primary color
@@ -181,7 +184,8 @@ public class App {
     // -1 = ignore
     // 0 = anything except primary color
     // 1 = primary color
-    // 2 = secondary color
+    // 2 = optional primary
+    // 3 = secondary color
     public Pattern[] generatePatterns() {
         RawPatterns rawPatterns = GSON.fromJson(new InputStreamReader(Objects.requireNonNull(getClass().getResourceAsStream("/amongus.json"))), RawPatterns.class);
 
@@ -205,7 +209,8 @@ public class App {
                     char c = pattern.pattern.get(y - 1).charAt(x - 1);
                     byte result;
                     if (c == 'X') result = 1; // primary color
-                    else if (c == 'O') result = 2; // secondary color
+                    else if (c == '?') result = 2; // optional primary
+                    else if (c == 'O') result = 3; // secondary color
                     else result = 0;
 
                     // pattern and mirrored pattern

@@ -4,48 +4,10 @@
       "name": "normal",
       "pattern": [
         " XXX",
-        "XXOO",
-        "XXXX",
-        " XXX",
-        " X X"
-      ]
-    },
-    {
-      "name": "tall_backpack",
-      "pattern": [
-        " XXX",
-        "XXOO",
-        "XXXX",
-        "XXXX",
-        " X X"
-      ]
-    },
-    {
-      "name": "short",
-      "pattern": [
-        " XXX",
-        "XXOO",
-        "XXXX",
-        " X X"
-      ]
-    },
-    {
-      "name": "no_backpack_normal",
-      "pattern": [
-        "XXX",
-        "XOO",
-        "XXX",
-        "XXX",
-        "X X"
-      ]
-    },
-    {
-      "name": "no_backpack_short",
-      "pattern": [
-        "XXX",
-        "XOO",
-        "XXX",
-        "X X"
+        "?XOO",
+        "?XXX",
+        "?X?X",
+        " ? ?"
       ]
     }
   ]
